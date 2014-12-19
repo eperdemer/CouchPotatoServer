@@ -1,10 +1,12 @@
 import traceback
+import time
 
 from couchpotato.core.event import addEvent, fireEvent
 from couchpotato.core.helpers.encoding import toUnicode, ss, tryUrlencode
 from couchpotato.core.helpers.variable import tryInt
 from couchpotato.core.logger import CPLog
 from couchpotato.core.media.movie.providers.base import MovieProvider
+from couchpotato.environment import Env
 
 log = CPLog(__name__)
 
@@ -21,11 +23,19 @@ class TheMovieDb(MovieProvider):
         },
     }
 
+    urls = {
+        'is_movie': 'https://api.couchpota.to/ismovie/%s/',
+    }
+
+    http_time_between_calls = 0
+    api_version = 1
+
     def __init__(self):
-        addEvent('info.search', self.search, priority = 3)
-        addEvent('movie.search', self.search, priority = 3)
-        addEvent('movie.info', self.getInfo, priority = 3)
-        addEvent('movie.info_by_tmdb', self.getInfo)
+        addEvent('info.search', self.search, priority = 0)
+        addEvent('movie.search', self.search, priority = 0)
+        addEvent('movie.info', self.getInfo, priority = 0)
+        addEvent('movie.info_by_tmdb', self.getInfo, priority = 0)
+        addEvent('movie.is_movie', self.isMovie, priority = 0)
         addEvent('app.load', self.config)
 
     def config(self):
@@ -140,7 +150,7 @@ class TheMovieDb(MovieProvider):
             'via_tmdb': True,
             'tmdb_id': movie.get('id'),
             'titles': [toUnicode(movie.get('title'))],
-            'original_title': movie.get('original_title'),
+            'original_title': toUnicode(movie.get('title')),
             'images': images,
             'imdb': movie.get('imdb_id'),
             'runtime': movie.get('runtime'),
@@ -196,7 +206,7 @@ class TheMovieDb(MovieProvider):
         params = tryUrlencode(params)
 
         try:
-            url = 'http://api.themoviedb.org/3/%s?api_key=%s%s' % (call, self.conf('api_key'), '&%s' % params if params else '')
+            url = 'http://api.themoviedb.org/3/%s?api_key=%s%s&language=%s' % (call, self.conf('api_key'), '&%s' % params if params else '', self.conf('language'))
             data = self.getJsonData(url, show_error = False)
         except:
             log.debug('Movie not found: %s, %s', (call, params))
@@ -207,12 +217,33 @@ class TheMovieDb(MovieProvider):
 
         return data
 
+    def isMovie(self, identifier = None, adding = False):
+
+        if not identifier:
+            return
+
+        url = self.urls['is_movie'] % identifier
+        url += '?adding=1' if adding else ''
+
+        data = self.getJsonData(url, headers = self.getRequestHeaders())
+        if data:
+            return data.get('is_movie', True)
+
+        return True
+
+    def getRequestHeaders(self):
+        return {
+            'X-CP-Version': fireEvent('app.version', single = True),
+            'X-CP-API': self.api_version,
+            'X-CP-Time': time.time(),
+            'X-CP-Identifier': '+%s' % Env.setting('api_key', 'core')[:10],  # Use first 10 as identifier, so we don't need to use IP address in api stats
+        }
+
     def isDisabled(self):
         if self.conf('api_key') == '':
             log.error('No API key provided.')
             return True
         return False
-
 
 config = [{
     'name': 'themoviedb',
@@ -224,6 +255,11 @@ config = [{
             'hidden': True,
             'description': 'Used for all calls to TheMovieDB.',
             'options': [
+                {
+                    'name': 'language',
+                    'default': 'de',
+                    'label': 'Language'
+                },
                 {
                     'name': 'api_key',
                     'default': '9b939aee0aaafc12a65bf448e4af9543',
