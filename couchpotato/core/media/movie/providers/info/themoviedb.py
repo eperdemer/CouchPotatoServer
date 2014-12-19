@@ -15,8 +15,6 @@ autoload = 'TheMovieDb'
 
 class TheMovieDb(MovieProvider):
 
-    http_time_between_calls = .35
-
     configuration = {
         'images': {
             'secure_base_url': 'https://image.tmdb.org/t/p/',
