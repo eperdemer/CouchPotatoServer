@@ -21,19 +21,13 @@ class TheMovieDb(MovieProvider):
         },
     }
 
-    urls = {
-        'is_movie': 'https://api.couchpota.to/ismovie/%s/',
-    }
-
     http_time_between_calls = 0
-    api_version = 1
 
     def __init__(self):
         addEvent('info.search', self.search, priority = 0)
         addEvent('movie.search', self.search, priority = 0)
         addEvent('movie.info', self.getInfo, priority = 0)
         addEvent('movie.info_by_tmdb', self.getInfo, priority = 0)
-        addEvent('movie.is_movie', self.isMovie, priority = 0)
         addEvent('app.load', self.config)
 
     def config(self):
@@ -214,28 +208,6 @@ class TheMovieDb(MovieProvider):
             data = data.get(return_key)
 
         return data
-
-    def isMovie(self, identifier = None, adding = False):
-
-        if not identifier:
-            return
-
-        url = self.urls['is_movie'] % identifier
-        url += '?adding=1' if adding else ''
-
-        data = self.getJsonData(url, headers = self.getRequestHeaders())
-        if data:
-            return data.get('is_movie', True)
-
-        return True
-
-    def getRequestHeaders(self):
-        return {
-            'X-CP-Version': fireEvent('app.version', single = True),
-            'X-CP-API': self.api_version,
-            'X-CP-Time': time.time(),
-            'X-CP-Identifier': '+%s' % Env.setting('api_key', 'core')[:10],  # Use first 10 as identifier, so we don't need to use IP address in api stats
-        }
 
     def isDisabled(self):
         if self.conf('api_key') == '':
