@@ -4,6 +4,10 @@ import re
 import traceback
 import xml.dom.minidom
 
+from chardet import detect
+from couchpotato.core.helpers.encoding import toUnicode
+import unicodedata
+
 from couchpotato.core.media.movie.providers.metadata.base import MovieMetaData
 from couchpotato.core.helpers.encoding import toUnicode
 from couchpotato.core.helpers.variable import getTitle
@@ -48,6 +52,16 @@ class XBMC(MovieMetaData):
         return self.createMetaNameMult(self.conf('meta_extra_fanart_name'), name, root, i)
 
     def createMetaName(self, basename, name, root):
+        detected = detect(root)
+        if detected.get('encoding') == 'ISO-8859-2':
+          root = toUnicode(root);
+          log.info('encoding root: %s %s', (root, detected.get('encoding')))
+
+        detected = detect(name)
+        if detected.get('encoding') == 'ISO-8859-2':
+          name = toUnicode(name);
+          log.info('encoding name: %s %s', (name, detected.get('encoding')))
+    
         return os.path.join(root, basename.replace('%s', name))
 
     def createMetaNameMult(self, basename, name, root, i):

@@ -1,6 +1,8 @@
 import traceback
 import time
 
+from chardet import detect
+
 from couchpotato.core.event import addEvent, fireEvent
 from couchpotato.core.helpers.encoding import toUnicode, ss, tryUrlencode
 from couchpotato.core.helpers.variable import tryInt
@@ -137,12 +139,18 @@ class TheMovieDb(MovieProvider):
                 except:
                     log.debug('Error getting cast info for %s: %s', (cast_item, traceback.format_exc()))
 
+        title = movie.get('title')
+        title = title.encode('utf-8')
+        detected = detect(title)
+        if detected.get('encoding') == 'ISO-8859-2':
+            title = title.decode('ISO-8859-2')
+
         movie_data = {
             'type': 'movie',
             'via_tmdb': True,
             'tmdb_id': movie.get('id'),
-            'titles': [toUnicode(movie.get('title'))],
-            'original_title': toUnicode(movie.get('title')),
+            'titles': [toUnicode(title)],
+            'original_title': toUnicode(title),
             'images': images,
             'imdb': movie.get('imdb_id'),
             'runtime': movie.get('runtime'),
